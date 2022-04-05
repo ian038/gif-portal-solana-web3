@@ -5,43 +5,37 @@ const { SystemProgram } = anchor.web3
 const main = async () => {
   console.log("🚀 Starting test...")
 
-  anchor.setProvider(anchor.Provider.env());
+  const provider = anchor.Provider.env()
+  anchor.setProvider(provider);
+
   const program = anchor.workspace.SolanaProgram;
-  const tx = await program.rpc.initialize();
+
+  const baseAccount = anchor.web3.Keypair.generate()
+
+  const tx = await program.rpc.initialize({
+    accounts: {
+      baseAccount: baseAccount.publicKey,
+      user: provider.wallet.publicKey,
+      systemProgram: SystemProgram.programId
+    },
+    signers: [baseAccount]
+  });
 
   console.log("📝 Your transaction signature", tx);
 
-  // const provider = anchor.Provider.env()
-  // anchor.setProvider(provider);
+  let account = await program.account.baseAccount.fetch(baseAccount.publicKey);
+  console.log('👀 GIF Count', account.totalGifs.toString())
 
-  // const program = anchor.workspace.SolanaProgram;
+  await program.rpc.addGif('https://media.giphy.com/media/MFmRXq9kFIBimLJS2h/giphy.gif', {
+    accounts: {
+      baseAccount: baseAccount.publicKey,
+      user: provider.wallet.publicKey
+    }
+  })
 
-  // const baseAccount = anchor.web3.Keypair.generate()
-
-  // const tx = await program.rpc.initialize({
-  //   accounts: {
-  //     baseAccount: baseAccount.publicKey,
-  //     user: provider.wallet.publicKey,
-  //     systemProgram: SystemProgram.programId
-  //   },
-  //   signers: [baseAccount]
-  // });
-
-  // console.log("📝 Your transaction signature", tx);
-
-  // let account = await program.account.baseAccount.fetch(baseAccount.publicKey);
-  // console.log('👀 GIF Count', account.totalGifs.toString())
-
-  // await program.rpc.addGif('https://media.giphy.com/media/J6Cyt2sk4TEYo978Ur/giphy.gif', {
-  //   accounts: {
-  //     baseAccount: baseAccount.publicKey,
-  //     user: provider.wallet.publicKey
-  //   }
-  // })
-
-  // account = await program.account.baseAccount.fetch(baseAccount.publicKey);
-  // console.log('👀 GIF Count', account.totalGifs.toString())
-  // console.log('👀 GIF Count', account.gifList)
+  account = await program.account.baseAccount.fetch(baseAccount.publicKey);
+  console.log('👀 GIF Count', account.totalGifs.toString())
+  console.log('👀 GIF Count', account.gifList)
 }
 
 const runMain = async () => {
