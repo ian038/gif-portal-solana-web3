@@ -140,15 +140,14 @@ const App = () => {
           <p className="sub-text">
             View your Muay Thai GIF collection in the metaverse ✨
           </p>
-          {!walletAddress && (
+          {!walletAddress ? (
             <button
               className="cta-button connect-wallet-button"
               onClick={connectWallet}
             >
               Connect to Wallet
             </button>
-          )}
-          {walletAddress && gifList === null ? (
+          ) : (walletAddress && gifList.length === 0) ? (
             <div className="connected-container">
               <button className="cta-button submit-gif-button" onClick={createGifAccount}>
                 Do One-Time Initialization For GIF Program Account
