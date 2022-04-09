@@ -4,10 +4,13 @@ import twitterLogo from './assets/twitter-logo.svg';
 import { useEffect, useState } from 'react';
 import './App.css';
 import idl from './idl.json'
+import kp from './keypair.json'
 
-const { SystemProgram, Keypair } = web3;
+const { SystemProgram } = web3;
 
-let baseAccount = Keypair.generate();
+const arr = Object.values(kp._keypair.secretKey)
+const secret = new Uint8Array(arr)
+const baseAccount = web3.Keypair.fromSecretKey(secret)
 
 const programID = new PublicKey(idl.metadata.address);
 const network = clusterApiUrl('devnet');
@@ -17,13 +20,6 @@ const opts = { preflightCommitment: "processed" }
 
 const TWITTER_HANDLE = '_buildspace';
 const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`;
-
-const TEST_GIFS = [
-  'https://media.giphy.com/media/6ygR0m66f6GvRnOS4D/giphy.gif',
-  'https://media.giphy.com/media/S2wuT4Ta9ksKTeLYrk/giphy.gif',
-  'https://media.giphy.com/media/hEaxF5qJU6yYgMEfxu/giphy.gif',
-  'https://media.giphy.com/media/MFmRXq9kFIBimLJS2h/giphy.gif'
-]
 
 const App = () => {
   const [walletAddress, setWalletAddress] = useState(null);
@@ -54,13 +50,26 @@ const App = () => {
   }
 
   const sendGif = async e => {
-    e.preventDefault()
-    if (gifLink.length > 0) {
-      console.log('Gif link:', gifLink);
-      setGifList([...gifList, gifLink]);
-      setGifLink('')
-    } else {
-      alert('Empty input. Try again.');
+    e.preventDefault();
+    if (gifLink.length === 0) {
+      alert('No gif link was given!')
+      return
+    }
+    setGifLink('')
+    try {
+      const provider = getProvider();
+      const program = new Program(idl, programID, provider);
+
+      await program.rpc.addGif(gifLink, {
+        accounts: {
+          baseAccount: baseAccount.publicKey,
+          user: provider.wallet.publicKey
+        }
+      });
+      console.log("GIF successfully sent to program", gifLink)
+      await getGifList();
+    } catch (error) {
+      console.log("Error sending GIF:", error)
     }
   }
 
@@ -91,7 +100,7 @@ const App = () => {
     try {
       const provider = getProvider();
       const program = new Program(idl, programID, provider);
-      console.log("ping")
+      console.log("initialize")
       await program.rpc.initialize({
         accounts: {
           baseAccount: baseAccount.publicKey,
@@ -154,12 +163,12 @@ const App = () => {
                   type="text"
                   placeholder="Enter gif link!"
                 />
-                <button type="submit" className="cta-button submit-gif-button">Submit</button>
+                <button onClick={sendGif} type="submit" className="cta-button submit-gif-button">Submit</button>
               </form>
               <div className="gif-grid">
                 {gifList.map((gif, i) => (
                   <div className="gif-item" key={i}>
-                    <img src={getGifList.gifLink} alt={gif} />
+                    <img src={gif.gifLink} alt={gif} />
                   </div>
                 ))}
               </div>
