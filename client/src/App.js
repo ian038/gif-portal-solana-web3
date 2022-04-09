@@ -1,6 +1,19 @@
+import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
+import { Program, Provider, web3 } from '@project-serum/anchor';
 import twitterLogo from './assets/twitter-logo.svg';
 import { useEffect, useState } from 'react';
 import './App.css';
+import idl from './idl.json'
+
+const { SystemProgram, Keypair } = web3;
+
+let baseAccount = Keypair.generate();
+
+const programID = new PublicKey(idl.metadata.address);
+const network = clusterApiUrl('devnet');
+
+// Controls how we want to acknowledge when a transaction is "done".
+const opts = { preflightCommitment: "processed" }
 
 const TWITTER_HANDLE = '_buildspace';
 const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`;
@@ -51,6 +64,50 @@ const App = () => {
     }
   }
 
+  const getProvider = () => {
+    const connection = new Connection(network, opts.preflightCommitment);
+    const provider = new Provider(
+      connection, window.solana, opts.preflightCommitment,
+    );
+    return provider;
+  }
+
+  const getGifList = async () => {
+    try {
+      const provider = getProvider();
+      const program = new Program(idl, programID, provider);
+      const account = await program.account.baseAccount.fetch(baseAccount.publicKey);
+
+      console.log("Got the account", account)
+      setGifList(account.gifList)
+
+    } catch (error) {
+      console.log("Error in getGifList: ", error)
+      setGifList(null);
+    }
+  }
+
+  const createGifAccount = async () => {
+    try {
+      const provider = getProvider();
+      const program = new Program(idl, programID, provider);
+      console.log("ping")
+      await program.rpc.initialize({
+        accounts: {
+          baseAccount: baseAccount.publicKey,
+          user: provider.wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        },
+        signers: [baseAccount]
+      });
+      console.log("Created a new BaseAccount w/ address:", baseAccount.publicKey.toString())
+      await getGifList();
+
+    } catch (error) {
+      console.log("Error creating BaseAccount account:", error)
+    }
+  }
+
   useEffect(() => {
     const onLoad = async () => {
       await checkIfWalletIsConnected()
@@ -62,9 +119,7 @@ const App = () => {
   useEffect(() => {
     if (walletAddress) {
       console.log('Fetching GIF list...');
-
-      // Call Solana program here.
-      setGifList(TEST_GIFS);
+      getGifList()
     }
   }, [walletAddress]);
 
@@ -84,7 +139,13 @@ const App = () => {
               Connect to Wallet
             </button>
           )}
-          {walletAddress && (
+          {walletAddress && gifList === null ? (
+            <div className="connected-container">
+              <button className="cta-button submit-gif-button" onClick={createGifAccount}>
+                Do One-Time Initialization For GIF Program Account
+              </button>
+            </div>
+          ) : (
             <div className="connected-container">
               <form onSubmit={sendGif}>
                 <input
@@ -96,9 +157,9 @@ const App = () => {
                 <button type="submit" className="cta-button submit-gif-button">Submit</button>
               </form>
               <div className="gif-grid">
-                {gifList.map(gif => (
-                  <div className="gif-item" key={gif}>
-                    <img src={gif} alt={gif} />
+                {gifList.map((gif, i) => (
+                  <div className="gif-item" key={i}>
+                    <img src={getGifList.gifLink} alt={gif} />
                   </div>
                 ))}
               </div>
